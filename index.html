@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema de Usuários</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input {
+            padding: 5px;
+            margin: 5px 0;
+            width: 200px;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #070707;
+            color: rgb(104, 235, 115);
+            border: none;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #9aa045;
+        }
+        #userList, #loginForm, #userForm {
+            margin-top: 20px;
+        }
+        .user-item {
+            border: 1px solid #aca90b;
+            padding: 10px;
+            margin: 5px 0;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sistema de Usuários</h1>
+
+    <div id="loginForm">
+        <h2>Login</h2>
+        <div class="form-group">
+            <input type="email" id="loginEmail" placeholder="Email">
+        </div>
+        <div class="form-group">
+            <input type="password" id="loginPassword" placeholder="Senha">
+        </div>
+        <button onclick="login()">Entrar</button>
+        <button onclick="showRegisterForm()">Registrar Novo Usuário</button>
+    </div>
+
+    <div id="userForm" class="hidden">
+        <h2>Gerenciamento de Usuário</h2>
+        <div class="form-group">
+            <input type="number" id="userId" placeholder="ID do usuário">
+        </div>
+        <div class="form-group">
+            <input type="text" id="userName" placeholder="Nome do usuário">
+        </div>
+        <div class="form-group">
+            <input type="email" id="userEmail" placeholder="Email do usuário">
+        </div>
+        <div class="form-group">
+            <input type="password" id="userPassword" placeholder="Senha">
+        </div>
+        <button onclick="createUser()">Criar Usuário</button>
+        <button onclick="updateUser()">Atualizar Usuário</button>               
+        <button onclick="deleteUser()">Deletar Usuário</button>
+        <button onclick="logout()">Sair</button>
+    </div>
+
+    <div id="userList" class="hidden"></div>
+
+    <script>
+        const API_URL = '/api';
+        let loggedInUser = null;
+
+        function showLoginForm() {
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('userForm').classList.add('hidden');
+            document.getElementById('userList').classList.add('hidden');
+        }
+
+        function showUserForm() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('userForm').classList.remove('hidden');
+            document.getElementById('userList').classList.remove('hidden');
+        }
+
+        function showRegisterForm() {
+            showUserForm();
+            clearForm();
+        }
+
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                if (response.ok) {
+                    const user = await response.json();
+                    loggedInUser = user;
+                    showUserForm();
+                    loadUsers();
+                    alert('Login realizado com sucesso!');
+                } else {
+                    alert('Email ou senha incorretos');
+                }
+            } catch (error) {
+                alert('Erro ao fazer login: ' + error);
+            }
+        }
+
+        function logout() {
+            loggedInUser = null;
+            showLoginForm();
+            clearForm();
+        }
+
+        function clearForm() {
+            document.getElementById('userId').value = '';
+            document.getElementById('userName').value = '';
+            document.getElementById('userEmail').value = '';
+            document.getElementById('userPassword').value = '';
+        }
+
+        async function createUser() {
+            const user = getUserData();
+            try {
+                const response = await fetch(`${API_URL}/users`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(user)
+                });
+                const result = await response.text();
+                alert(result);
+                if (response.ok) {
+                    if (!loggedInUser) {
+                        showLoginForm();
+                    } else {
+                        loadUsers();
+                    }
+                }
+            } catch (error) {
+                alert('Erro ao criar usuário: ' + error);
+            }
+        }
+
+        async function updateUser() {
+            const user = getUserData();
+            try {
+                const response = await fetch(`${API_URL}/users`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(user)
+                });
+                alert(await response.text());
+                loadUsers();
+            } catch (error) {
+                alert('Erro ao atualizar usuário: ' + error);
+            }
+        }
+
+        async function deleteUser(id) {
+            if (confirm('Tem certeza que deseja deletar este usuário?')) {
+                try {
+                    const response = await fetch(`${API_URL}/users/${id}`, {
+                        method: 'DELETE'
+                    });
+                    alert(await response.text());
+                    loadUsers();
+                } catch (error) {
+                    alert('Erro ao deletar usuário: ' + error);
+                }
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_URL}/users`);
+                const users = await response.json();
+                displayUsers(users);
+            } catch (error) {
+                alert('Erro ao carregar usuários: ' + error);
+            }
+        }
+
+        function getUserData() {
+            return {
+                id: document.getElementById('userId').value ? parseInt(document.getElementById('userId').value) : null,
+                name: document.getElementById('userName').value,
+                email: document.getElementById('userEmail').value,
+                password: document.getElementById('userPassword').value
+            };
+        }
+
+        function displayUsers(users) {
+            const userList = document.getElementById('userList');
+            userList.innerHTML = '<h2>Lista de Usuários</h2>';
+            
+            Object.values(users).forEach(user => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'user-item';
+                userDiv.innerHTML = `
+                    <p>ID: ${user.id}</p>
+                    <p>Nome: ${user.name}</p>
+                    <p>Email: ${user.email}</p>
+                    <button onclick="deleteUser(${user.id})">Deletar</button>
+                    <button onclick="selectUser(${user.id}, '${user.name}', '${user.email}')">Selecionar</button>
+                `;
+                userList.appendChild(userDiv);
+            });
+        }
+
+        function selectUser(id, name, email) {
+            document.getElementById('userId').value = id;
+            document.getElementById('userName').value = name;
+            document.getElementById('userEmail').value = email;
+            document.getElementById('userPassword').value = '';
+        }
+
+        // Inicializa mostrando o formulário de login
+        showLoginForm();
+    </script>
+</body>
+</html> 
